@@ -1,0 +1,25 @@
+# ── Dependencies ──────────────────────────────────────────────
+# Installed per-server (and hoisted, if workspaces land later).
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────
+# esbuild/tsc emit. Never commit dists — they are rebuilt from src/.
+# Note: build.js and run.js are SOURCE (each server's root), not output.
+dist/
+*.tsbuildinfo
+
+# ── Logs & debug artifacts ────────────────────────────────────
+*.log
+startup.log
+
+# ── Environment & secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS / editor cruft ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+npm-debug.log*
+
+# tests/ is intentionally tracked — integration fixtures live in the repo.
