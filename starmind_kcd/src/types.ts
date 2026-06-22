@@ -32,16 +32,8 @@ export interface SaveResult {
 	failed: Array<{ path: string; error: string }>;
 }
 
-// ── Tool response helpers ─────────────────────────────────────────────────────
-
-type TextBlock = { type: 'text'; text: string };
-
-/** Wrap any serialisable value in the MCP text-content envelope. */
-export function toolResult( data: unknown ): { content: TextBlock[] } {
-	return { content: [ { type: 'text', text: JSON.stringify( data, null, 2 ) } ] };
-}
-
-/** Return an error response that the MCP client surfaces as a tool failure. */
-export function toolError( message: string ): { content: TextBlock[]; isError: true } {
-	return { content: [ { type: 'text', text: message } ], isError: true };
+/** A single inbound link from kcd_links — an artifact that points at the target. */
+export interface InboundLink {
+	path:         string;
+	relativePath: string;
 }

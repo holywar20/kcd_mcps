@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "kcd": {
-      "command": "npx",
-      "args": ["tsx", "C:/Code/ContextManager/kcd_mcp/src/index.ts"]
-    }
-  }
-}

@@ -1,6 +1,7 @@
 import { StarmindServer } from 'kcd_sdk';
 import type { ServerManifest } from 'kcd_sdk';
 import { GuardChain, PathGuard } from './guards';
+// bryan TODO - Research unification of tool surfaces using params.
 import { discoveryTools } from './tools/discovery';
 import { readTools } from './tools/read';
 import { writeTools } from './tools/write';
@@ -16,7 +17,7 @@ import { writeTools } from './tools/write';
 export class KcdServer extends StarmindServer {
 
 	static manifest: ServerManifest = {
-		id:          'kcd',
+		id:          'starmind_kcd',
 		name:        'KCD',
 		version:     '0.1.0',
 		entryPoint:  'dist/index.js',
@@ -24,6 +25,13 @@ export class KcdServer extends StarmindServer {
 		credentials: [],
 		installed:   false,
 		exposed:     false,
+		doc:
+			'The KCD library gate — read/write access to the artifact vault (lenses, plans, habits, ' +
+			'contracts, references, generators, analyzers, pipelines, templates). A thin I/O surface ' +
+			'over kcd_sdk: discovery (glob/list/search/types), reads (get/links/health), and writes ' +
+			'(save/move). Every path is jailed to the vault by the PathGuard before any disk touch; ' +
+			'reads are free, writes carry a destructive hint. Judgment lives in the model above and ' +
+			'kcd_sdk beneath — these tools only gate I/O.',
 	};
 
 	private chain = new GuardChain( new PathGuard() );

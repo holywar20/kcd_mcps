@@ -1,8 +1,6 @@
-import * as path from 'path';
 import { AbstractGuard, GuardError } from './AbstractGuard';
 import type { ToolRequest } from './AbstractGuard';
-import { LensObject } from 'kcd_sdk';
-import { CONFIG } from '../config';
+import { MCPUtils } from '../MCPUtils';
 
 /**
  * PathGuard — first concrete guard; three responsibilities:
@@ -15,13 +13,6 @@ import { CONFIG } from '../config';
  *                     NonceGuard or an extension here activates it for named-pipe transport.
  */
 export class PathGuard extends AbstractGuard {
-
-	private vaultRoot: string;
-
-	constructor() {
-		super();
-		this.vaultRoot = path.resolve( path.join( CONFIG.projectRoot, CONFIG.docRoot ) );
-	}
 
 	validate( req: ToolRequest ): void {
 		const p = req.params;
@@ -42,13 +33,9 @@ export class PathGuard extends AbstractGuard {
 	 * Throws GuardError if it resolves to a path outside or equal to the vault root itself.
 	 */
 	jail( inputPath: string ): void {
-		const resolved = path.resolve( inputPath );
-		const rel      = path.relative( this.vaultRoot, resolved );
-
-		// path.relative returns a path starting with '..' if resolved is outside vaultRoot
-		if ( rel.startsWith( '..' ) || path.isAbsolute( rel ) ) {
+		if ( !MCPUtils.vault.isInside( inputPath ) ) {
 			throw new GuardError(
-				`Path "${inputPath}" is outside the vault ("${this.vaultRoot}")`,
+				`Path "${inputPath}" is outside the vault ("${MCPUtils.vault.root}")`,
 				'PATH_OUTSIDE_VAULT'
 			);
 		}
@@ -58,7 +45,7 @@ export class PathGuard extends AbstractGuard {
 		for ( const [ writePath, artifact ] of Object.entries( writes ) ) {
 			this.jail( writePath );
 
-			const inferredType  = LensObject.classifyByPath( writePath, CONFIG.projectRoot, CONFIG.docRoot );
+			const inferredType  = MCPUtils.vault.classify( writePath );
 			const fm            = typeof artifact === 'object' && artifact !== null
 				? ( artifact as Record<string, unknown> )['frontmatter']
 				: undefined;

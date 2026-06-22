@@ -1,10 +1,11 @@
 {
-  "name": "kcd_mcp",
+  "name": "starmind_kcd",
   "version": "0.1.0",
   "description": "KCD MCP server — thin I/O gate over kcd_sdk",
   "scripts": {
     "start": "tsx src/index.ts",
-    "build": "node build.js",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && node build.js",
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {

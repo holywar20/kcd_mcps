@@ -1,0 +1,19 @@
+{
+  "name": "starmind_file",
+  "version": "0.1.0",
+  "description": "Starmind file-reader MCP server — whitelist-scoped filesystem access for agents",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && node build.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "kcd_sdk": "file:../../kcd_sdk"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

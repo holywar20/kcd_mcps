@@ -1,0 +1,164 @@
+import { KCDPrimitive } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec } from 'kcd_sdk';
+import { GuardChain } from '../guards';
+import { MCPUtils } from '../MCPUtils';
+import type { HealthIssue, HealthReport } from '../types';
+
+export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: TestSpec[] } )[] {
+	return [
+		{
+			name:        'kcd_get',
+			annotations: { readOnlyHint: true },
+			spec: [
+				{ label: 'reads a lens artifact', input: { path: 'lenses/mcp/mcp.md' }, assertions: [] },
+				{ label: 'PathGuard jails an out-of-vault path', input: { path: 'C:/Windows/System32/drivers/etc/hosts' }, assertions: [ { type: 'error_expected' } ] },
+			],
+			description: 'Load and serialize a KCD artifact. For lenses, depth controls how many levels of always-policy children are dredged (default 1 = artifact only, 2+ = with children).',
+			doc:
+				'Load one artifact by vault-relative `path`, parse it, and return its serialized shape ' +
+				'(frontmatter + sections + body + resolved links). For a lens, `depth` controls dredge: ' +
+				'1 (default) returns the lens alone; 2+ pulls its always-policy children that many levels ' +
+				'deep, so the returned object carries the composed Know set. Non-lens types ignore `depth`. ' +
+				'The path is PathGuard-jailed to the vault; an out-of-vault path returns a structured error. ' +
+				'Use kcd_links instead when you only need the link graph, not the full body. Read-only.',
+			inputSchema: {
+				type:       'object',
+				properties: {
+					path:  { type: 'string', description: 'Vault-relative path to the artifact.' },
+					depth: { type: 'integer', minimum: 1, maximum: 4, description: 'Lens dredge depth; 1 = artifact only.' },
+				},
+				required: [ 'path' ],
+			},
+			handler: async ( args ) => {
+				try {
+					chain.run( { tool: 'kcd_get', params: args } );
+
+					const vault    = MCPUtils.vault;
+					const filePath = String( args[ 'path' ] ?? '' );
+					const depth    = typeof args[ 'depth' ] === 'number' ? args[ 'depth' ] as number : undefined;
+					const type     = vault.classify( filePath );
+
+					if ( type === 'lens' ) {
+						// vault.loadLens injects the real fs reader — a bare load leaves
+						// disk-read unset (a main/node capability) and throws on dredge.
+						const lens = vault.loadLens( filePath, { depth: depth ?? 1 } );
+						return MCPUtils.result( lens.serialize() );
+					}
+
+					const artifact = KCDPrimitive.create( type, vault.read( filePath ), vault.toAbs( filePath ) );
+					return MCPUtils.result( artifact.serialize() );
+				} catch ( e ) {
+					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
+				}
+			},
+		},
+		{
+			name:        'kcd_links',
+			annotations: { readOnlyHint: true },
+			spec: [
+				{ label: 'resolves links for a lens', input: { path: 'lenses/mcp/mcp.md' }, assertions: [] },
+			],
+			description: 'Get outbound links declared by an artifact and inbound links pointing to it from the rest of the vault.',
+			doc:
+				'Resolve the link graph around one artifact. Returns `{ outbound, inbound }`: outbound = the ' +
+				'links the artifact itself declares (resolved to their targets); inbound = every other file ' +
+				'in the vault whose links resolve TO this one (backlinks), found by scanning + resolving the ' +
+				'whole vault. The graph primitive behind the editor\'s reference fan and the backlink panel. ' +
+				'Cheaper than kcd_get when you only need edges, not the body. Read-only.',
+			inputSchema: {
+				type:       'object',
+				properties: { path: { type: 'string', description: 'Vault-relative path to the artifact.' } },
+				required:   [ 'path' ],
+			},
+			handler: async ( args ) => {
+				try {
+					chain.run( { tool: 'kcd_links', params: args } );
+
+					const vault    = MCPUtils.vault;
+					const filePath = String( args[ 'path' ] ?? '' );
+					const abs      = vault.toAbs( filePath );
+					const artifact = KCDPrimitive.create( vault.classify( filePath ), vault.read( filePath ), abs );
+					const outbound = artifact.getLinks();
+
+					// Inbound: scan vault, resolve each raw link, match against target
+					const inbound  = vault.scan()
+						.filter( f => f.rawLinks.some( l => vault.resolveHref( l.href ) === abs ) )
+						.map( f => ( {
+							path:         f.relativePath,
+							relativePath: f.relativePath,
+						} ) );
+
+					return MCPUtils.result( { outbound, inbound } );
+				} catch ( e ) {
+					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
+				}
+			},
+		},
+		{
+			name:        'kcd_health',
+			annotations: { readOnlyHint: true },
+			spec: [
+				{ label: 'validates the whole vault', input: {}, assertions: [] },
+			],
+			description: 'Run structural validation on one artifact (path provided) or the entire vault (no path). Returns issues and a summary.',
+			doc:
+				'Structurally validate artifacts against their type rules (required frontmatter, sections, ' +
+				'link integrity). Pass `path` to check one file; omit it to scan + check the entire vault. ' +
+				'Returns `{ issues, summary }` where each issue carries its path, severity (error/warn), and ' +
+				'message, and the summary totals errors vs warnings. A parse failure on a file becomes an ' +
+				'error issue rather than aborting the run. The pre-flight before a save sweep. Read-only.',
+			inputSchema: {
+				type:       'object',
+				properties: { path: { type: 'string', description: 'Optional vault-relative path; omit to check the whole vault.' } },
+				required:   [],
+			},
+			handler: async ( args ) => {
+				try {
+					chain.run( { tool: 'kcd_health', params: args } );
+
+					const issues: HealthIssue[] = [];
+					const inputPath = typeof args[ 'path' ] === 'string' ? args[ 'path' ] as string : '';
+
+					const vault = MCPUtils.vault;
+
+					const checkFile = ( filePath: string ) => {
+						const rel = vault.toVaultRel( filePath );
+
+						try {
+							const artifact = KCDPrimitive.create( vault.classify( filePath ), vault.read( filePath ), vault.toAbs( filePath ) );
+
+							for ( const issue of artifact.typeCheck() ) {
+								issues.push( { path: rel, ...issue } );
+							}
+						} catch ( e ) {
+							issues.push( {
+								path:     rel,
+								severity: 'error',
+								message:  e instanceof Error ? e.message : String( e ),
+							} );
+						}
+					};
+
+					if ( inputPath ) {
+						checkFile( inputPath );
+					} else {
+						for ( const f of vault.scan() ) checkFile( f.path );
+					}
+
+					const report: HealthReport = {
+						issues,
+						summary: {
+							total:    issues.length,
+							errors:   issues.filter( i => i.severity === 'error' ).length,
+							warnings: issues.filter( i => i.severity === 'warn' ).length,
+						},
+					};
+
+					return MCPUtils.result( report );
+				} catch ( e ) {
+					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
+				}
+			},
+		},
+	];
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "starmind_kcd": {
+      "command": "npx",
+      "args": ["tsx", "C:/Code/ContextManager/kcd_all_mcps/starmind_kcd/src/index.ts"]
+    }
+  }
+}

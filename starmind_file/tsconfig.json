@@ -11,6 +11,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../kcd_sdk" }]
+  "exclude": ["node_modules", "dist"]
 }
