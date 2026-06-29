@@ -1,6 +1,7 @@
 import { SdkFileAccess } from 'kcd_sdk'
 import { GuardChain, WhitelistGuard } from '../guards'
 import { MCPUtils } from '../MCPUtils'
+import { Blacklist } from '../Blacklist'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
 type ReadRow = { path: string; ok: boolean; content?: string; reason?: string }
@@ -20,7 +21,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 			spec: [
 				{ label: 'structural fail when paths is missing', input: {}, assertions: [ { type: 'error_expected' } ] },
 			],
-			description: 'Batch-read text files. Returns { path, ok, content?, reason? } per path; one bad path never fails the batch (reason: outside_whitelist | not_found | too_large | binary).',
+			description: 'Batch-read text files. Returns { path, ok, content?, reason? } per path; one bad path never fails the batch (reason: outside_whitelist | out_of_scope | not_found | too_large | binary).',
 			inputSchema: {
 				type:       'object',
 				properties: { paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths to read; each must sit inside a whitelisted root.' } },
@@ -50,6 +51,14 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 
 						if( !WhitelistGuard.permits( 'read', entry ) ) {
 							rows.push( { path: entry, ok: false, reason: 'outside_whitelist' } )
+							continue
+						}
+
+						// Blacklist is VOCAL on a direct read — the agent named this path, so tell it the
+						// path is off-limits by policy (it may need to relay that to the user). Decided by
+						// pattern alone, BEFORE any stat: this discloses the rule, never the file's existence.
+						if( Blacklist.excludes( entry ) ) {
+							rows.push( { path: entry, ok: false, reason: 'out_of_scope' } )
 							continue
 						}
 

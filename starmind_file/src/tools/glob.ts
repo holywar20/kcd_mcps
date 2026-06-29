@@ -1,5 +1,6 @@
 import { GuardChain } from '../guards'
 import { MCPUtils } from '../MCPUtils'
+import { Blacklist } from '../Blacklist'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
 type GlobRow = { path: string; isDir: boolean; size: number; mtime: number }
@@ -35,8 +36,13 @@ export function globTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 					const pattern = String( args[ 'pattern' ] ?? '' )
 					const matches = MCPUtils.files.glob( path, pattern )
 
+					// Blacklisted matches are dropped SILENTLY — pattern discovery must not surface a
+					// denied path (same rule as list; the vocal path is a direct read → out_of_scope).
 					const rows: GlobRow[] = []
 					for( const entry of matches ) {
+						if( Blacklist.excludes( entry.path ) ) {
+							continue
+						}
 						rows.push( {
 							path:  entry.path,
 							isDir: entry.isDir,

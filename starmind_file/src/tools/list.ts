@@ -1,5 +1,6 @@
 import { GuardChain } from '../guards'
 import { MCPUtils } from '../MCPUtils'
+import { Blacklist } from '../Blacklist'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
 type ListRow = { path: string; isDir: boolean; size: number; mtime: number }
@@ -30,8 +31,13 @@ export function listTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 					const path    = String( args[ 'path' ] ?? '' )
 					const entries = MCPUtils.files.list( path )
 
+					// Blacklisted entries are dropped SILENTLY — a discovery listing must not even hint a
+					// denied file exists. (A direct `read` of one is vocal: out_of_scope.)
 					const rows: ListRow[] = []
 					for( const entry of entries ) {
+						if( Blacklist.excludes( entry.path ) ) {
+							continue
+						}
 						rows.push( {
 							path:  entry.path,
 							isDir: entry.isDir,
