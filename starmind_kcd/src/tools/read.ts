@@ -10,7 +10,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 			name:        'kcd_get',
 			annotations: { readOnlyHint: true },
 			spec: [
-				{ label: 'reads a lens artifact', input: { path: 'lenses/mcp/mcp.md' }, assertions: [] },
+				{ label: 'reads a lens artifact', input: { path: 'lenses/parser/parser.html' }, assertions: [] },
 				{ label: 'PathGuard jails an out-of-vault path', input: { path: 'C:/Windows/System32/drivers/etc/hosts' }, assertions: [ { type: 'error_expected' } ] },
 			],
 			description: 'Load and serialize a KCD artifact. For lenses, depth controls how many levels of always-policy children are dredged (default 1 = artifact only, 2+ = with children).',
@@ -45,7 +45,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 						return MCPUtils.result( lens.serialize() );
 					}
 
-					const artifact = KCDPrimitive.create( type, vault.read( filePath ), vault.toAbs( filePath ) );
+					const artifact = KCDPrimitive.fromHtml( vault.read( filePath ), vault.toAbs( filePath ) );
 					return MCPUtils.result( artifact.serialize() );
 				} catch ( e ) {
 					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
@@ -56,7 +56,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 			name:        'kcd_links',
 			annotations: { readOnlyHint: true },
 			spec: [
-				{ label: 'resolves links for a lens', input: { path: 'lenses/mcp/mcp.md' }, assertions: [] },
+				{ label: 'resolves links for a lens', input: { path: 'lenses/parser/parser.html' }, assertions: [] },
 			],
 			description: 'Get outbound links declared by an artifact and inbound links pointing to it from the rest of the vault.',
 			doc:
@@ -77,7 +77,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 					const vault    = MCPUtils.vault;
 					const filePath = String( args[ 'path' ] ?? '' );
 					const abs      = vault.toAbs( filePath );
-					const artifact = KCDPrimitive.create( vault.classify( filePath ), vault.read( filePath ), abs );
+					const artifact = KCDPrimitive.fromHtml( vault.read( filePath ), abs );
 					const outbound = artifact.getLinks();
 
 					// Inbound: scan vault, resolve each raw link, match against target
@@ -125,7 +125,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 						const rel = vault.toVaultRel( filePath );
 
 						try {
-							const artifact = KCDPrimitive.create( vault.classify( filePath ), vault.read( filePath ), vault.toAbs( filePath ) );
+							const artifact = KCDPrimitive.fromHtml( vault.read( filePath ), vault.toAbs( filePath ) );
 
 							for ( const issue of artifact.typeCheck() ) {
 								issues.push( { path: rel, ...issue } );

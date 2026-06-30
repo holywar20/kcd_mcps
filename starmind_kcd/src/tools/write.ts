@@ -1,46 +1,30 @@
-import { KCDPrimitive } from 'kcd_sdk';
-import type { ToolDefinition, SerializedArtifact, TestSpec } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec } from 'kcd_sdk';
 import { GuardChain } from '../guards';
 import { MCPUtils } from '../MCPUtils';
-import type { SaveResult } from '../types';
 
 export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: TestSpec[] } )[] {
 	return [
 		{
 			name:        'kcd_save',
 			annotations: { destructiveHint: true },
-			// Flush-and-fill round-trip: writes one throwaway artifact (overwritten each run,
-			// no history) and asserts it saved with no failures. The embedded artifact mirrors
-			// a real serialized shape so fromSerialized → toMarkdown round-trips.
+			// NOT IMPLEMENTED in the HTML cutover. Saving an artifact means object-model → HTML
+			// emit, and that serializer ( the render/emit direction ) does not exist yet — it is
+			// Phase 3 of the substrate migration. Until then a save must fail LOUD rather than
+			// silently write stale markdown, so verify() asserts the structured error.
 			spec: [
 				{
-					label: 'round-trips a throwaway artifact',
-					input: {
-						writes: {
-							'work/mcp/AI/.verify-throwaway.md': {
-								path:        'work/mcp/AI/.verify-throwaway.md',
-								type:        'habit',
-								frontmatter: { type: 'habit', status: 'active' },
-								sections:    {},
-								body:        '\n# Habit — verify throwaway\n\n**When:** never — written by verify() to prove kcd_save round-trips.\n',
-								links:       [],
-							},
-						},
-					},
-					assertions: [
-						{ type: 'type_is',  key: 'saved',  expected: 'array' },
-						{ type: 'value_eq', key: 'failed', expected: [] },
-					],
+					label: 'not implemented → structured error',
+					input: { writes: { 'work/mcp/AI/.verify-throwaway.html': {} } },
+					assertions: [ { type: 'error_expected' } ],
 				},
 			],
-			description: 'Write one or more KCD artifacts to disk. Accepts a WriteMap (path → SerializedArtifact). PathGuard validates all paths and type consistency before any file is touched.',
+			description: 'Write one or more KCD artifacts to disk. NOT IMPLEMENTED — the object-model → HTML emitter lands in Phase 3 of the substrate migration; until then, save fails with a structured error.',
 			doc:
-				'DESTRUCTIVE — writes files. `writes` is a map of vault-relative path → SerializedArtifact; ' +
-				'each value is rehydrated (fromSerialized) and rendered back to markdown (toMarkdown) before ' +
-				'it lands, so only well-formed artifacts persist. PathGuard validates every path and its ' +
-				'type consistency up front. Returns `{ saved, failed }` — saved is the list of written ' +
-				'paths, failed pairs each rejected path with its error; one bad entry does not block the ' +
-				'rest (per-write try/catch). Batch related writes in one call. Overwrites in place; no history.',
+				'NOT IMPLEMENTED in the HTML cutover. A save requires serializing the object model back to ' +
+				'HTML ( the render/emit direction ), which is Phase 3 of the substrate migration — there is ' +
+				'no markdown emit any more, and no HTML emit yet. The tool is listed so its capacity stays ' +
+				'visible; today it always returns a structured error. `writes` is a map of vault-relative ' +
+				'path → SerializedArtifact, the shape a real save will consume.',
 			inputSchema: {
 				type:       'object',
 				properties: { writes: { type: 'object', additionalProperties: true, description: 'Map of vault-relative path → SerializedArtifact.' } },
@@ -49,23 +33,10 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 			handler: async ( args ) => {
 				try {
 					chain.run( { tool: 'kcd_save', params: args } );
-
-					const writes = ( args[ 'writes' ] ?? {} ) as Record<string, SerializedArtifact>;
-					const result: SaveResult = { saved: [], failed: [] };
-
-					for ( const [ writePath, serialized ] of Object.entries( writes ) ) {
-						try {
-							const artifact = KCDPrimitive.fromSerialized( serialized );
-							result.saved.push( MCPUtils.vault.write( writePath, artifact.toMarkdown() ) );
-						} catch ( e ) {
-							result.failed.push( {
-								path:  writePath,
-								error: e instanceof Error ? e.message : String( e ),
-							} );
-						}
-					}
-
-					return MCPUtils.result( result );
+					return MCPUtils.error(
+						'kcd_save is not implemented in the HTML cutover. The object-model → HTML emitter is ' +
+						'Phase 3 of the substrate migration; until it lands, artifacts cannot be written back to disk.'
+					);
 				} catch ( e ) {
 					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
 				}
