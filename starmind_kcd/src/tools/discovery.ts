@@ -41,10 +41,10 @@ export function discoveryTools( chain: GuardChain ): ( ToolDefinition & { spec?:
 			spec: [
 				{ label: 'lists lenses', input: { type: 'lens' }, assertions: [] },
 			],
-			description: 'List all artifacts of a given type (lens, plan, habit, contract, generator, analyzer, pipeline, reference, template, framework).',
+			description: 'List all artifacts of a given type (lens, plan, habit, contract, generator, analyzer, utility, reference, template, framework).',
 			doc:
 				'Enumerate every artifact of one KCD type across the whole vault. `type` is the classifier ' +
-				'(lens, plan, habit, contract, reference, generator, analyzer, pipeline, template, framework) — ' +
+				'(lens, plan, habit, contract, reference, generator, analyzer, utility, template, framework) — ' +
 				'derived from each file\'s location + frontmatter, not its extension. ' +
 				'Returns an array of refs (path + type). The fastest way to answer "what lenses exist?" ' +
 				'without globbing paths. Use kcd_types first if you don\'t yet know which types are present. Read-only.',
