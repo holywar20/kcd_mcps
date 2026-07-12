@@ -100,13 +100,17 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 			spec: [
 				{ label: 'validates the whole vault', input: {}, assertions: [] },
 			],
-			description: 'Run structural validation on one artifact (path provided) or the entire vault (no path). Returns issues and a summary.',
+			description: 'Validate one artifact (path provided) or the entire vault (no path): structural type rules plus reference integrity (dangling links, broken base/lens refs). Returns issues and a summary.',
 			doc:
-				'Structurally validate artifacts against their type rules (required frontmatter, sections, ' +
-				'link integrity). Pass `path` to check one file; omit it to scan + check the entire vault. ' +
-				'Returns `{ issues, summary }` where each issue carries its path, severity (error/warn), and ' +
-				'message, and the summary totals errors vs warnings. A parse failure on a file becomes an ' +
-				'error issue rather than aborting the run. The pre-flight before a save sweep. Read-only.',
+				'Validate artifacts on two axes. STRUCTURAL ( per file ): required frontmatter, sections, ' +
+				'and type rules — a parse failure becomes an error issue rather than aborting the run. ' +
+				'REFERENCE INTEGRITY ( cross-file, advisory warnings ): internal links whose target is missing ' +
+				'on disk ( code-file links count; external URLs, #anchors, and {placeholder} hrefs are skipped ), ' +
+				'and `base`/`lens` slugs that name no artifact ( the `cross` sentinel is skipped ). Pass `path` ' +
+				'to check one file; omit it to sweep the whole vault. Returns `{ issues, summary }` — each issue ' +
+				'carries its path, severity (error/warn), and message; the summary totals errors vs warnings. ' +
+				'The pre-flight before a save or move sweep, and the observable form of the "always viable" ' +
+				'invariant. Read-only.',
 			inputSchema: {
 				type:       'object',
 				properties: { path: { type: 'string', description: 'Optional vault-relative path; omit to check the whole vault.' } },
@@ -144,6 +148,12 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 					} else {
 						for ( const f of vault.scan() ) checkFile( f.path );
 					}
+
+					// Reference integrity ( cross-file, advisory ) — the hygiene half, alongside the
+					// per-file structural checks above. Logic lives in the Vault; the handler only folds
+					// its findings into the same issue list.
+					for ( const ri of vault.referenceIssues( inputPath || undefined ) )
+						issues.push( { path: ri.path, severity: ri.severity, message: ri.message } );
 
 					const report: HealthReport = {
 						issues,

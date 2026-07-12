@@ -29,8 +29,10 @@ export class KcdServer extends StarmindServer {
 			'The KCD library gate — read/write access to the artifact vault (lenses, plans, habits, ' +
 			'contracts, references, generators, analyzers, utilities, templates). A thin I/O surface ' +
 			'over kcd_sdk: discovery (glob/list/search/types), reads (get/links/health), and writes ' +
-			'(save/move). Every path is jailed to the vault by the PathGuard before any disk touch; ' +
-			'reads are free, writes carry a destructive hint. Judgment lives in the model above and ' +
+			'(save/move/delete) — move and delete HEAL the link graph, so a rename rewrites every inbound ' +
+			'reference and a delete cascades through every referrer. Every path is jailed to the vault by ' +
+			'the PathGuard before any disk touch; reads are free, writes carry a destructive hint. ' +
+			'Judgment lives in the model above and ' +
 			'kcd_sdk beneath — these tools only gate I/O.',
 	};
 
