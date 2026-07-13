@@ -1,4 +1,5 @@
-import type { ToolDefinition, TestSpec } from 'kcd_sdk';
+import { KcdEmit, KcdValidate } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec, SerializedArtifact } from 'kcd_sdk';
 import { GuardChain } from '../guards';
 import { MCPUtils } from '../MCPUtils';
 
@@ -7,36 +8,57 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 		{
 			name:        'kcd_save',
 			annotations: { destructiveHint: true },
-			// NOT IMPLEMENTED in the HTML cutover. Saving an artifact means object-model → HTML
-			// emit, and that serializer ( the render/emit direction ) does not exist yet — it is
-			// Phase 3 of the substrate migration. Until then a save must fail LOUD rather than
-			// silently write stale markdown, so verify() asserts the structured error.
-			spec: [
-				{
-					label: 'not implemented → structured error',
-					input: { writes: { 'work/mcp/AI/.verify-throwaway.html': {} } },
-					assertions: [ { type: 'error_expected' } ],
+			example:     {
+				path:     'references/domain/my-note.html',
+				artifact: {
+					type:        'reference',
+					frontmatter: { name: 'my-note', description: 'A worked example.', type: 'reference', status: 'active' },
+					body:        '<h1>My Note</h1>\n<p>The body content.</p>',
 				},
+			},
+			spec: [
+				{ label: 'jails an out-of-vault path', input: { path: 'C:/Windows/x.html', artifact: { type: 'reference', frontmatter: {}, body: '' } }, assertions: [ { type: 'error_expected' } ] },
+				{ label: 'refuses an artifact that fails validation', input: { path: 'references/domain/x.html', artifact: { type: 'reference', frontmatter: {}, body: '' } }, assertions: [ { type: 'error_expected' } ] },
 			],
-			description: 'Write one or more KCD artifacts to disk. NOT IMPLEMENTED — the object-model → HTML emitter lands in Phase 3 of the substrate migration; until then, save fails with a structured error.',
+			description: 'Write one KCD artifact to disk: emit HTML from its structured shape, validate, and save — a malformed artifact is refused, nothing written. Creates or overwrites. For several, sequence via kcd_batch.',
 			doc:
-				'NOT IMPLEMENTED in the HTML cutover. A save requires serializing the object model back to ' +
-				'HTML ( the render/emit direction ), which is Phase 3 of the substrate migration — there is ' +
-				'no markdown emit any more, and no HTML emit yet. The tool is listed so its capacity stays ' +
-				'visible; today it always returns a structured error. `writes` is a map of vault-relative ' +
-				'path → SerializedArtifact, the shape a real save will consume.',
+				'Persist one artifact by vault-relative `path` from its `artifact` ( a SerializedArtifact — the ' +
+				'shape kcd_get returns ). Emits HTML with KcdEmit: frontmatter is rebuilt from `artifact.frontmatter`, ' +
+				'the `body` passes through — an existing body has its frontmatter block replaced ( the edit path: ' +
+				'kcd_get → mutate → kcd_save ), a body with none gets one prepended ( the create path ). The result ' +
+				'is validated with KcdValidate BEFORE any write: a structural failure returns a structured error and ' +
+				'writes NOTHING ( the write-time gate — can\'t save a malformed artifact ). On success it writes and ' +
+				'returns `{ saved, warnings }`. PathGuard jails the path and checks the declared type matches the ' +
+				'target directory. NOTE: agent-authored body HTML is not yet sanitized here ( the render layer ' +
+				'sanitizes on display; a save-time sanitize pass is a named deferral ), and structured ' +
+				'section/region/slot synthesis ( create a lens from fields alone ) is not built — supply body HTML.',
 			inputSchema: {
 				type:       'object',
-				properties: { writes: { type: 'object', additionalProperties: true, description: 'Map of vault-relative path → SerializedArtifact.' } },
-				required:   [ 'writes' ],
+				properties: {
+					path:     { type: 'string', description: 'Vault-relative destination path.' },
+					artifact: { type: 'object', additionalProperties: true, description: 'The SerializedArtifact to write ( type + frontmatter + body ).' },
+				},
+				required: [ 'path', 'artifact' ],
 			},
 			handler: async ( args ) => {
 				try {
 					chain.run( { tool: 'kcd_save', params: args } );
-					return MCPUtils.error(
-						'kcd_save is not implemented in the HTML cutover. The object-model → HTML emitter is ' +
-						'Phase 3 of the substrate migration; until it lands, artifacts cannot be written back to disk.'
-					);
+
+					const filePath = String( args[ 'path' ] ?? '' );
+					const raw      = ( args[ 'artifact' ] ?? {} ) as Record<string, unknown>;
+					// coerce body to a string — an absent body is a create with no content ( validation
+					// will then reject it with a helpful message, not a parse crash ).
+					const artifact = { ...raw, body: typeof raw[ 'body' ] === 'string' ? raw[ 'body' ] : '' } as unknown as SerializedArtifact;
+
+					const html   = KcdEmit.emit( artifact );
+					const report = KcdValidate.validate( html );
+					if ( !report.ok ) {
+						const detail = report.errors.map( e => `${ e.code } @ ${ e.where }: ${ e.msg }` ).join( '; ' );
+						return MCPUtils.error( `kcd_save refused "${ filePath }": artifact failed validation — ${ detail }` );
+					}
+
+					const saved = MCPUtils.vault.write( filePath, html );
+					return MCPUtils.result( { saved, warnings: report.warnings } );
 				} catch ( e ) {
 					return MCPUtils.error( e instanceof Error ? e.message : String( e ) );
 				}

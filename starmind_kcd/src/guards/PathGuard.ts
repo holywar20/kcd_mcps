@@ -22,9 +22,9 @@ export class PathGuard extends AbstractGuard {
 			if ( typeof p[key] === 'string' ) this.jail( p[key] as string );
 		}
 
-		// kcd_save: jail every write path and check type consistency
-		if ( req.tool === 'kcd_save' && p['writes'] !== undefined ) {
-			this.validateWriteMap( p['writes'] as Record<string, unknown> );
+		// kcd_save: the path is jailed above; also check the declared type matches its target directory.
+		if ( req.tool === 'kcd_save' && typeof p['path'] === 'string' ) {
+			this.checkType( p['path'] as string, p['artifact'] );
 		}
 	}
 
@@ -41,24 +41,25 @@ export class PathGuard extends AbstractGuard {
 		}
 	}
 
-	private validateWriteMap( writes: Record<string, unknown> ): void {
-		for ( const [ writePath, artifact ] of Object.entries( writes ) ) {
-			this.jail( writePath );
+	/**
+	 * On a save, assert the artifact's declared type matches the type its target directory implies —
+	 * a lens cannot be saved into references/, etc. ( the path itself is jailed by validate() ). A
+	 * missing/unknown declared type is left to KcdValidate downstream; this only catches a real mismatch.
+	 */
+	private checkType( writePath: string, artifact: unknown ): void {
+		const inferredType = MCPUtils.vault.classify( writePath );
+		const fm           = typeof artifact === 'object' && artifact !== null
+			? ( artifact as Record<string, unknown> )['frontmatter']
+			: undefined;
+		const declaredType = typeof fm === 'object' && fm !== null
+			? String( ( fm as Record<string, unknown> )['type'] ?? '' )
+			: '';
 
-			const inferredType  = MCPUtils.vault.classify( writePath );
-			const fm            = typeof artifact === 'object' && artifact !== null
-				? ( artifact as Record<string, unknown> )['frontmatter']
-				: undefined;
-			const declaredType  = typeof fm === 'object' && fm !== null
-				? String( ( fm as Record<string, unknown> )['type'] ?? '' )
-				: '';
-
-			if ( declaredType && inferredType !== 'unknown' && declaredType !== inferredType ) {
-				throw new GuardError(
-					`Type mismatch at "${writePath}": directory implies "${inferredType}", artifact declares "${declaredType}"`,
-					'TYPE_MISMATCH'
-				);
-			}
+		if ( declaredType && inferredType !== 'unknown' && declaredType !== inferredType ) {
+			throw new GuardError(
+				`Type mismatch at "${writePath}": directory implies "${inferredType}", artifact declares "${declaredType}"`,
+				'TYPE_MISMATCH'
+			);
 		}
 	}
 

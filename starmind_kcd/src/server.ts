@@ -5,6 +5,7 @@ import { GuardChain, PathGuard } from './guards';
 import { discoveryTools } from './tools/discovery';
 import { readTools } from './tools/read';
 import { writeTools } from './tools/write';
+import { batchTools } from './tools/batch';
 
 /**
  * KcdServer — the KCD MCP server, and the first StarmindServer subclass.
@@ -28,11 +29,11 @@ export class KcdServer extends StarmindServer {
 		doc:
 			'The KCD library gate — read/write access to the artifact vault (lenses, plans, habits, ' +
 			'contracts, references, generators, analyzers, utilities, templates). A thin I/O surface ' +
-			'over kcd_sdk: discovery (glob/list/search/types), reads (get/links/health), and writes ' +
-			'(save/move/delete) — move and delete HEAL the link graph, so a rename rewrites every inbound ' +
-			'reference and a delete cascades through every referrer. Every path is jailed to the vault by ' +
-			'the PathGuard before any disk touch; reads are free, writes carry a destructive hint. ' +
-			'Judgment lives in the model above and ' +
+			'over kcd_sdk: one query (kcd_query), reads (get/links/health), writes (save/move/delete), and a ' +
+			'batch (kcd_batch) that runs an ordered sequence of calls in one shot. Move and delete HEAL the ' +
+			'link graph — a rename rewrites every inbound reference, a delete cascades through every referrer. ' +
+			'Every path is jailed to the vault by the PathGuard before any disk touch; reads are free, writes ' +
+			'carry a destructive hint. Judgment lives in the model above and ' +
 			'kcd_sdk beneath — these tools only gate I/O.',
 	};
 
@@ -43,6 +44,9 @@ export class KcdServer extends StarmindServer {
 			...discoveryTools( this.chain ),
 			...readTools( this.chain ),
 			...writeTools( this.chain ),
+			// batch dispatches the others through the base's in-process invoke seam ( no guard chain of
+			// its own — each dispatched call runs its own handler + PathGuard ).
+			...batchTools( ( name, args ) => this.invoke( name, args ) ),
 		];
 		for ( const tool of tools ) this.registerTool( tool );
 	}
