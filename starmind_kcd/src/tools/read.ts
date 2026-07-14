@@ -13,7 +13,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				{ label: 'reads a lens artifact', input: { path: 'lenses/parser/parser.html' }, assertions: [] },
 				{ label: 'PathGuard jails an out-of-vault path', input: { path: 'C:/Windows/System32/drivers/etc/hosts' }, assertions: [ { type: 'error_expected' } ] },
 			],
-			description: 'Load and serialize a KCD artifact. For lenses, depth controls how many levels of always-policy children are dredged (default 1 = artifact only, 2+ = with children).',
+			description: 'Load and serialize a KCD artifact. For lenses, depth controls how many levels of linked context to include (default 1 = the lens alone, 2+ = with the lenses/references it always pulls in).',
 			doc:
 				'Load one artifact by vault-relative `path`, parse it, and return its serialized shape ' +
 				'(frontmatter + sections + body + resolved links). For a lens, `depth` controls dredge: ' +
@@ -25,7 +25,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				type:       'object',
 				properties: {
 					path:  { type: 'string', description: 'Vault-relative path to the artifact.' },
-					depth: { type: 'integer', minimum: 1, maximum: 4, description: 'Lens dredge depth; 1 = artifact only.' },
+					depth: { type: 'integer', minimum: 1, maximum: 4, default: 1, description: 'Lens dredge depth; 1 = artifact only.' },
 				},
 				required: [ 'path' ],
 			},

@@ -36,7 +36,16 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 				type:       'object',
 				properties: {
 					path:     { type: 'string', description: 'Vault-relative destination path.' },
-					artifact: { type: 'object', additionalProperties: true, description: 'The SerializedArtifact to write ( type + frontmatter + body ).' },
+					artifact: {
+						type:        'object',
+						description: 'The SerializedArtifact to write.',
+						properties: {
+							type:        { type: 'string', description: 'Artifact type (lens, plan, habit, reference, …) — must match the target directory.' },
+							frontmatter: { type: 'object', additionalProperties: true, description: 'Frontmatter fields (name, description, status, …) — rebuilt into the HTML header block.' },
+							body:        { type: 'string', description: 'Body HTML, no frontmatter block. Omit only when creating from fields alone (not yet supported — supply body HTML).' },
+						},
+						required: [ 'type', 'frontmatter', 'body' ],
+					},
 				},
 				required: [ 'path', 'artifact' ],
 			},

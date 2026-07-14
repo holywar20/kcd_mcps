@@ -29,7 +29,11 @@ export function discoveryTools( chain: GuardChain ): ( ToolDefinition & { spec?:
 				type:       'object',
 				properties: {
 					glob:    { type: 'string', description: 'Vault-relative path glob; * within a segment, ** across segments.' },
-					type:    { type: 'string', description: 'Artifact-type filter (lens, plan, habit, reference, …).' },
+					type:    {
+						type:        'string',
+						enum:        [ 'lens', 'plan', 'habit', 'reference', 'contract', 'generator', 'analyzer', 'template', 'framework', 'nav-index' ],
+						description: 'Artifact-type filter.',
+					},
 					text:    { type: 'string', description: 'Case-insensitive substring across body + serialized frontmatter.' },
 					groupBy: { type: 'string', enum: [ 'type' ], description: 'Return { type, count }[] instead of refs.' },
 				},

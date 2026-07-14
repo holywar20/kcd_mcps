@@ -7,6 +7,7 @@ import { readTools } from './tools/read'
 import { globTools } from './tools/glob'
 import { grepTools } from './tools/grep'
 import { writeTools } from './tools/write'
+import { loadConfig } from './config'
 
 /**
  * StarmindFileServer — whitelist-scoped filesystem read access for agents.
@@ -69,5 +70,23 @@ export class StarmindFileServer extends StarmindServer {
 		for( const tool of writeTools( this.chain ) ) {
 			this.registerTool( tool )
 		}
+	}
+
+	/**
+	 * Folds the live enabled whitelist into the base doc-block, mirroring roots — so an agent that
+	 * gets this server's doc already knows every reachable root (and which are write-enabled) with
+	 * no discovery call first. Read fresh each time via loadConfig(), same freshness contract the
+	 * guards already use.
+	 */
+	liveDoc(): string {
+		const base = super.liveDoc()
+		const roots = loadConfig().whitelist.filter( e => e.enabled )
+
+		if( roots.length === 0 ) {
+			return `${ base }\n\nWhitelist: empty — no root is reachable until one is enabled in config.`
+		}
+
+		const list = roots.map( e => `${ e.path }${ e.write ? ' (write)' : '' }` ).join( ', ' )
+		return `${ base }\n\nWhitelist (live): ${ list }`
 	}
 }

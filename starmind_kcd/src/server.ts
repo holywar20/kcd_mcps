@@ -1,6 +1,7 @@
 import { StarmindServer } from 'kcd_sdk';
 import type { ServerManifest } from 'kcd_sdk';
 import { GuardChain, PathGuard } from './guards';
+import { MCPUtils } from './MCPUtils';
 // bryan TODO - Research unification of tool surfaces using params.
 import { discoveryTools } from './tools/discovery';
 import { readTools } from './tools/read';
@@ -49,5 +50,28 @@ export class KcdServer extends StarmindServer {
 			...batchTools( ( name, args ) => this.invoke( name, args ) ),
 		];
 		for ( const tool of tools ) this.registerTool( tool );
+	}
+
+	/**
+	 * Folds the live vault root and a fresh type census into the base doc-block, so an agent that
+	 * gets this server's doc already knows where the vault lives and roughly what's in it — a
+	 * cheaper orientation than a kcd_query({ groupBy: 'type' }) round-trip. Read fresh each time
+	 * (MCPUtils.vault re-resolves config on access), same freshness contract every tool here uses.
+	 */
+	liveDoc(): string {
+		const base  = super.liveDoc();
+		const vault = MCPUtils.vault;
+
+		const counts: Record<string, number> = {};
+		for ( const f of vault.scan() ) {
+			const t = vault.classify( f.path );
+			counts[ t ] = ( counts[ t ] ?? 0 ) + 1;
+		}
+		const census = Object.entries( counts )
+			.sort( ( a, b ) => b[ 1 ] - a[ 1 ] )
+			.map( ( [ type, count ] ) => `${ type }: ${ count }` )
+			.join( ', ' );
+
+		return `${ base }\n\nVault root (live): ${ vault.root }\nCensus (live): ${ census || 'empty' }`;
 	}
 }
