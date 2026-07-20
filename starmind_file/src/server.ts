@@ -7,6 +7,7 @@ import { readTools } from './tools/read'
 import { globTools } from './tools/glob'
 import { grepTools } from './tools/grep'
 import { writeTools } from './tools/write'
+import { deleteTools } from './tools/delete'
 import { loadConfig } from './config'
 
 /**
@@ -30,7 +31,7 @@ export class StarmindFileServer extends StarmindServer {
 		entryPoint:  'dist/index.js',
 		transport:   'stdio',
 		credentials: [],
-		doc:         'Starmind File — whitelist-scoped read access to the local filesystem, plus a severely-limited write surface. `roots` surfaces the directories the user has whitelisted; `list`, `read`, `glob`, and `grep` explore and search within them; `write` saves files but ONLY inside roots the user has explicitly opted into writing (off by default), and only safe extensions under a size cap, never over a blacklisted secret. Every path is jailed to the whitelist, so an agent reads the project without roaming the disk and cannot write outside the narrow surface granted it.',
+		doc:         'Starmind File — whitelist-scoped read access to the local filesystem, plus a severely-limited write/delete surface. `roots` surfaces the directories the user has whitelisted; `list`, `read`, `glob`, and `grep` explore and search within them; `write` saves files and `delete` removes them, but BOTH only inside roots the user has explicitly opted into writing (off by default) and never over a blacklisted secret — `write` additionally limited to safe extensions under a size cap, `delete` to files (not directories). Every path is jailed to the whitelist, so an agent reads the project without roaming the disk and cannot write or delete outside the narrow surface granted it.',
 		// The config screen renders the bespoke 'file_access' surface (FileAccessPanel) under this package —
 		// the whitelist (Off / Read / Write per root), the grep file cap, and the extra hidden-pattern list.
 		// A list of records, so a bespoke surface, not flat fields. The panel writes the slice this server
@@ -70,12 +71,18 @@ export class StarmindFileServer extends StarmindServer {
 		for( const tool of writeTools( this.chain ) ) {
 			this.registerTool( tool )
 		}
+		// delete — rides the SAME write surface (write-enabled root + secret blacklist), gated by DeleteGuard
+		// per item. Files only, no directories. destructiveHint is set so the host can gate it (the Interaction
+		// Deck's delete approval lives host-side at the ToolGate, not in this server).
+		for( const tool of deleteTools( this.chain ) ) {
+			this.registerTool( tool )
+		}
 	}
 
 	/**
 	 * Folds the live enabled whitelist into the base doc-block, mirroring roots — so an agent that
-	 * gets this server's doc already knows every reachable root (and which are write-enabled) with
-	 * no discovery call first. Read fresh each time via loadConfig(), same freshness contract the
+	 * gets this server's doc already knows every reachable root (and which are write/delete-enabled)
+	 * with no discovery call first. Read fresh each time via loadConfig(), same freshness contract the
 	 * guards already use.
 	 */
 	liveDoc(): string {
@@ -86,7 +93,8 @@ export class StarmindFileServer extends StarmindServer {
 			return `${ base }\n\nWhitelist: empty — no root is reachable until one is enabled in config.`
 		}
 
-		const list = roots.map( e => `${ e.path }${ e.write ? ' (write)' : '' }` ).join( ', ' )
+		// A write-enabled root is also the delete surface — one flag governs both, so label it as such.
+		const list = roots.map( e => `${ e.path }${ e.write ? ' (write/delete)' : '' }` ).join( ', ' )
 		return `${ base }\n\nWhitelist (live): ${ list }`
 	}
 }
