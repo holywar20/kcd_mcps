@@ -1,5 +1,6 @@
 import { KcdEmit, KcdValidate } from 'kcd_sdk';
-import type { ToolDefinition, TestSpec, SerializedArtifact } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec } from '../mcp';
+import type { SerializedArtifact } from 'kcd_sdk';
 import { GuardChain } from '../guards';
 import { MCPUtils } from '../MCPUtils';
 

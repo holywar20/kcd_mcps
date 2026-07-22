@@ -1,7 +1,7 @@
 import { GuardChain } from '../guards';
 import { MCPUtils } from '../MCPUtils';
 
-import type { ToolDefinition, TestSpec } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec } from '../mcp';
 
 export function discoveryTools( chain: GuardChain ): ( ToolDefinition & { spec?: TestSpec[] } )[] {
 	return [

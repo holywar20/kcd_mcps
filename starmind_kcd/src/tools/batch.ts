@@ -1,8 +1,8 @@
 import { MCPUtils } from '../MCPUtils';
 
-import type { ToolDefinition, TestSpec, ToolResult } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec, ToolResult } from '../mcp';
 
-/** The server's in-process dispatch — `StarmindServer.invoke`, bound at build() time. */
+/** The server's in-process dispatch — `DaedalusServer.invoke`, bound at build() time. */
 type Invoke = ( name: string, args: Record<string, unknown> ) => Promise<ToolResult>;
 
 /**

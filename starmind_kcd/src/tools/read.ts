@@ -1,5 +1,5 @@
 import { KCDPrimitive } from 'kcd_sdk';
-import type { ToolDefinition, TestSpec } from 'kcd_sdk';
+import type { ToolDefinition, TestSpec } from '../mcp';
 import { GuardChain } from '../guards';
 import { MCPUtils } from '../MCPUtils';
 import type { HealthIssue, HealthReport } from '../types';

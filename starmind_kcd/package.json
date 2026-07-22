@@ -6,7 +6,9 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && node build.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "verify": "tsx src/scripts/verify.ts",
+    "snapshot": "tsx src/scripts/snapshot.ts"
   },
   "dependencies": {
     "kcd_sdk": "file:../../kcd_sdk"

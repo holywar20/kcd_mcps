@@ -1,6 +1,6 @@
-import { KcdServer } from './server';
+import { DaedalusServer } from './server';
 
-new KcdServer().run().catch( ( err ) => {
-	process.stderr.write( `kcd-mcp: fatal: ${ err }\n` );
+new DaedalusServer().run().catch( ( err ) => {
+	process.stderr.write( `daedalus-mcp: fatal: ${ err }\n` );
 	process.exit( 1 );
 } );
