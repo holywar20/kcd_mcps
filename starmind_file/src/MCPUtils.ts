@@ -4,7 +4,7 @@ import { McpTrace } from './McpTrace'
 type TextBlock = { type: 'text'; text: string }
 
 /**
- * MCPUtils — the MCP-local utility surface as one bounded object (mirrors starmind_kcd's). Holds
+ * MCPUtils — the MCP-local utility surface as one bounded object (mirrors daedalus's). Holds
  * the shared SdkFileAccess core (the SAME read/list/floors every reader enforces) and the MCP
  * wire-envelope helpers. Imported as the object — never as loose functions.
  */

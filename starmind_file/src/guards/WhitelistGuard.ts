@@ -8,7 +8,7 @@ type GuardCode = 'WHITELIST_EMPTY' | 'PATH_OUTSIDE_WHITELIST'
 
 /**
  * WhitelistGuard — the agent surface's jail (security Layer 2, the only tier-varying layer) and the
- * sole source of containment truth. Mirrors PathGuard at the head of starmind_kcd's GuardChain.
+ * sole source of containment truth. Mirrors PathGuard at the head of daedalus's GuardChain.
  *
  * Two surfaces, one check (contain):
  *   validate() — the chain entry. THROWS, for all-or-nothing tools (e.g. `list`): one path, one
