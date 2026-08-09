@@ -13,6 +13,19 @@ export interface ToolRequest {
 	tool:   string;
 	/** The params object as received from the MCP SDK after Zod validation. */
 	params: Record<string, unknown>;
+	/**
+	 * The call's out-of-band envelope — JSON-RPC's `_meta`, forwarded VERBATIM from the handler.
+	 * Carries the user-authored grants the host asserted for this call ( read via `CallMeta.grants` ).
+	 * ONE of two carriers, not the only one: it is present when Starmind owns the call, and absent on
+	 * the harness tier where Claude Code does — there the grants arrive by file. `WhitelistGuard._grantsFor`
+	 * is the single place that knows the difference; nothing else should learn it.
+	 *
+	 * A TOOL NEVER READS THIS; only a guard does. That asymmetry is the containment. The envelope
+	 * arrives opaque and leaves opaque, so a handler holds nothing it could strip, rewrite or
+	 * synthesize — forwarding is the only thing it can do with it. Optional, because a call carrying
+	 * no exception omits the field entirely.
+	 */
+	meta?:  Record<string, unknown>;
 }
 
 export class GuardError extends Error {

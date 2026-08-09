@@ -28,9 +28,10 @@ export function globTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				},
 				required:   [ 'path', 'pattern' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
-					chain.run( { tool: 'glob', params: args } )
+					// `meta` is forwarded opaque — the guard reads the grants off it, this handler never does.
+					chain.run( { tool: 'glob', params: args, meta } )
 
 					const path    = String( args[ 'path' ] ?? '' )
 					const pattern = String( args[ 'pattern' ] ?? '' )

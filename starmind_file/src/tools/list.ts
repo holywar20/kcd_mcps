@@ -24,9 +24,10 @@ export function listTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				properties: { path: { type: 'string', description: 'Absolute directory path to list; must sit inside a whitelisted root.' } },
 				required:   [ 'path' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
-					chain.run( { tool: 'list', params: args } )
+					// `meta` is forwarded opaque — the guard reads the grants off it, this handler never does.
+					chain.run( { tool: 'list', params: args, meta } )
 
 					const path    = String( args[ 'path' ] ?? '' )
 					const entries = MCPUtils.files.list( path )

@@ -27,11 +27,12 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				properties: { paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths to read; each must sit inside a whitelisted root.' } },
 				required:   [ 'paths' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
 					// Universal guards run here; the path-jail is per-item below so one bad path in the
-					// batch returns a reason instead of throwing the whole call.
-					chain.run( { tool: 'read', params: args } )
+					// batch returns a reason instead of throwing the whole call. `meta` is forwarded opaque
+					// to both — the guard reads the grants off it, this handler never does.
+					chain.run( { tool: 'read', params: args, meta } )
 
 					const paths = args[ 'paths' ]
 					if( !Array.isArray( paths ) ) {
@@ -49,7 +50,7 @@ export function readTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 							continue
 						}
 
-						if( !WhitelistGuard.permits( 'read', entry ) ) {
+						if( !WhitelistGuard.permits( 'read', entry, meta ) ) {
 							rows.push( { path: entry, ok: false, reason: 'outside_whitelist' } )
 							continue
 						}

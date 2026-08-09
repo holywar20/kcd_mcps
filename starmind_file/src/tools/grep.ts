@@ -47,9 +47,10 @@ export function grepTools( chain: GuardChain ): ( ToolDefinition & { spec?: Test
 				},
 				required:   [ 'path', 'query' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
-					chain.run( { tool: 'grep', params: args } )
+					// `meta` is forwarded opaque — the guard reads the grants off it, this handler never does.
+					chain.run( { tool: 'grep', params: args, meta } )
 
 					const root  = String( args[ 'path' ] ?? '' )
 					const query = String( args[ 'query' ] ?? '' )
