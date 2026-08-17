@@ -1,5 +1,6 @@
 import { MCPUtils } from '../MCPUtils'
 import { WhitelistGuard } from '../guards/WhitelistGuard'
+import { operationsFor } from 'kcd_sdk'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
 /**
@@ -24,7 +25,7 @@ export function rootsTools(): ( ToolDefinition & { spec?: TestSpec[] } )[] {
 			spec: [
 				{ label: 'returns a roots array', input: {}, assertions: [ { type: 'has_key', key: 'roots' }, { type: 'type_is', key: 'roots', expected: 'array' } ] },
 			],
-			description: 'List the paths you are allowed to search and read — your permitted directories, plus anything the user has handed you for this session (which may be a single file). Every path you use must sit inside one of these.',
+			description: 'List the paths you may reach AND what you may do in each — your permitted directories, plus anything the user has handed you for this session (which may be a single file). Returns { path, may } per root, where `may` lists the operations that will succeed there; a path missing an operation will be refused for it. Every path you use must sit inside one of these. Call this before a write or a removal rather than discovering the boundary by being refused.',
 			inputSchema: {
 				type:       'object',
 				properties: {},
@@ -37,7 +38,14 @@ export function rootsTools(): ( ToolDefinition & { spec?: TestSpec[] } )[] {
 					// the guard when it admits — and one of them being built separately is exactly how they
 					// come to disagree. Granted subjects arrive undifferentiated from configured roots on
 					// purpose: the agent needs to know where it may go, never why it may go there.
-					return MCPUtils.result( { roots: WhitelistGuard.scope( meta ) } )
+					// WITH THE OPERATIONS EACH ONE PERMITS. A bare path list answered "where may I go" and
+					// left "how deeply" discoverable only by attempting something and being refused — so an
+					// agent had to trip the gate to read the policy, and every trace showed a failed write
+					// where it should have shown a decision not to try. Operations rather than rung names,
+					// per the standing ruling: this string is prompt text.
+					return MCPUtils.result( {
+						roots: WhitelistGuard.scopeEntries( meta ).map( ( e ) => ( { path: e.path, may: operationsFor( e.level ) } ) )
+					} )
 				} catch ( e ) {
 					return MCPUtils.error( e instanceof Error ? e.message : String( e ) )
 				}

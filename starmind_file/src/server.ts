@@ -8,7 +8,7 @@ import { globTools } from './tools/glob'
 import { grepTools } from './tools/grep'
 import { writeTools } from './tools/write'
 import { deleteTools } from './tools/delete'
-import { loadConfig } from './config'
+import { permissionProbeTools, probeArmed } from './tools/permissionProbe'
 
 /**
  * StarmindFileServer — whitelist-scoped filesystem read access for agents.
@@ -30,6 +30,13 @@ export class StarmindFileServer extends StarmindServer {
 		version:     '0.1.0',
 		entryPoint:  'dist/index.js',
 		transport:   'stdio',
+		// PER-CALL, so the host points this server at the calling agent's project before every call — it
+		// writes the project's own file policy into the slice this server already re-reads ( loadConfig ),
+		// and passes the project root as `--root`. Without this the server declares no workspace posture at
+		// all, which is not subtly-wrong scoping but ABSENT scoping: an agent switching projects kept the
+		// previous one's reach, because the list it jailed against was one install-wide list nothing
+		// re-pointed. The server still needs no notion of projects; the host does the pointing.
+		workspace:   'per-call',
 		credentials: [],
 		doc:         'Starmind File — whitelist-scoped read access to the local filesystem, plus a severely-limited write/delete surface. `roots` surfaces the directories the user has whitelisted; `list`, `read`, `glob`, and `grep` explore and search within them; `write` saves files and `delete` removes them, but BOTH only inside roots the user has explicitly opted into writing (off by default) and never over a blacklisted secret — `write` additionally limited to safe extensions under a size cap, `delete` to files (not directories). Every path is jailed to the whitelist, so an agent reads the project without roaming the disk and cannot write or delete outside the narrow surface granted it.',
 		// The config screen renders the bespoke 'file_access' surface (FileAccessPanel) under this package —
@@ -77,24 +84,13 @@ export class StarmindFileServer extends StarmindServer {
 		for( const tool of deleteTools( this.chain ) ) {
 			this.registerTool( tool )
 		}
-	}
-
-	/**
-	 * Folds the live enabled whitelist into the base doc-block, mirroring roots — so an agent that
-	 * gets this server's doc already knows every reachable root (and which are write/delete-enabled)
-	 * with no discovery call first. Read fresh each time via loadConfig(), same freshness contract the
-	 * guards already use.
-	 */
-	liveDoc(): string {
-		const base = super.liveDoc()
-		const roots = loadConfig().whitelist.filter( e => e.enabled )
-
-		if( roots.length === 0 ) {
-			return `${ base }\n\nWhitelist: empty — no root is reachable until one is enabled in config.`
+		// TEMPORARY INSTRUMENT — delete with tools/permissionProbe.ts once the harness gate is built. Behind
+		// its env flag so the ordinary agent surface is untouched: an always-present tool would show up in
+		// every roster and in probeTools()'s report, which is a lasting cost for a one-run measurement.
+		if( probeArmed() ) {
+			for( const tool of permissionProbeTools() ) {
+				this.registerTool( tool )
+			}
 		}
-
-		// A write-enabled root is also the delete surface — one flag governs both, so label it as such.
-		const list = roots.map( e => `${ e.path }${ e.write ? ' (write/delete)' : '' }` ).join( ', ' )
-		return `${ base }\n\nWhitelist (live): ${ list }`
 	}
 }

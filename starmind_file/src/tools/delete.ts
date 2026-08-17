@@ -3,7 +3,9 @@ import { GuardChain, DeleteGuard } from '../guards'
 import { MCPUtils } from '../MCPUtils'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
-type DeleteRow = { path: string; ok: boolean; reason?: string }
+/** `reason` is the stable CODE a caller branches on; `detail` is the sentence it acts on. Same pair the
+ *  write rows carry, for the same reason. */
+type DeleteRow = { path: string; ok: boolean; reason?: string; detail?: string }
 
 /**
  * delete — the batch file-delete lever, the destructive counterpart to `read`/`write`. N paths in one call,
@@ -29,7 +31,7 @@ export function deleteTools( chain: GuardChain ): ( ToolDefinition & { spec?: Te
 			spec: [
 				{ label: 'structural fail when paths is missing', input: {}, assertions: [ { type: 'error_expected' } ] },
 			],
-			description: 'Batch-delete files. Severely limited: each path must sit inside a WRITE-enabled whitelist root (deletes ride the write surface, off until a root is opted in) and clear the secret blacklist. Files only. Returns { path, ok, reason? } per file; one denied/missing path never fails the batch.',
+			description: 'Batch-delete files. Severely limited: each path must sit inside a WRITE-enabled whitelist root (deletes ride the write surface, off until a root is opted in) and clear the secret blacklist. Files only. Returns { path, ok, reason?, detail? } per file — `reason` is a stable code, `detail` says what would make the delete succeed; one denied/missing path never fails the batch.',
 			inputSchema: {
 				type:       'object',
 				properties: {
@@ -41,7 +43,7 @@ export function deleteTools( chain: GuardChain ): ( ToolDefinition & { spec?: Te
 				},
 				required: [ 'paths' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
 					// Universal chain (no single `path` param on a batch tool, so the whitelist guard is a
 					// no-op here); the real gating is DeleteGuard per item, so one bad path never sinks the batch.
@@ -59,9 +61,11 @@ export function deleteTools( chain: GuardChain ): ( ToolDefinition & { spec?: Te
 							continue
 						}
 
-						const denial = DeleteGuard.permits( 'delete', entry )
+						// `meta` reaches the guard for EXPLANATION only — `contain` still resolves against
+					// configuration alone, which is what keeps a gesture structurally unable to reach this rung.
+					const denial = DeleteGuard.permits( 'delete', entry, meta )
 						if( denial ) {
-							rows.push( { path: entry, ok: false, reason: denial } )
+							rows.push( { path: entry, ok: false, reason: denial.code, detail: denial.detail } )
 							continue
 						}
 

@@ -15,7 +15,7 @@ export interface ToolRequest {
 	params: Record<string, unknown>;
 	/**
 	 * The call's out-of-band envelope — JSON-RPC's `_meta`, forwarded VERBATIM from the handler.
-	 * Carries the user-authored grants the host asserted for this call ( read via `CallMeta.grants` ).
+	 * Carries the user-authored grants the host asserted for this call ( read via `Authorization.grants` ).
 	 * ONE of two carriers, not the only one: it is present when Starmind owns the call, and absent on
 	 * the harness tier where Claude Code does — there the grants arrive by file. `WhitelistGuard._grantsFor`
 	 * is the single place that knows the difference; nothing else should learn it.

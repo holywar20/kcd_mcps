@@ -57,22 +57,4 @@ export class SemanticBrowserServer extends StarmindServer {
 		const session   = new GuardedSession( connector, chain );
 		for ( const tool of browserTools( session ) ) this.registerTool( tool );
 	}
-
-	/**
-	 * Folds the live whitelist into the base doc-block, so an agent that gets this server's doc
-	 * (because navigate or any other of its tools is in context) already knows every reachable
-	 * origin — no roots-style discovery call needed first. Read fresh each time via loadConfig(),
-	 * same as the guards, so a whitelist edit shows up on the next read with no respawn.
-	 */
-	liveDoc(): string {
-		const base    = super.liveDoc();
-		const origins = loadConfig().origins.filter( o => o.enabled );
-
-		if ( origins.length === 0 ) {
-			return `${ base }\n\nWhitelist: empty — no origin is reachable until one is enabled in config.`;
-		}
-
-		const list = origins.map( o => `${ o.origin } (${ o.tier })` ).join( ', ' );
-		return `${ base }\n\nWhitelist (live): ${ list }`;
-	}
 }

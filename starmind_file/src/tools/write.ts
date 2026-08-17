@@ -4,7 +4,10 @@ import { GuardChain, WriteGuard } from '../guards'
 import { MCPUtils } from '../MCPUtils'
 import type { ToolDefinition, TestSpec } from 'kcd_sdk'
 
-type WriteRow = { path: string; ok: boolean; reason?: string }
+/** `reason` is the stable CODE a caller branches on; `detail` is the sentence it acts on. Both, because a
+ *  batch row that carried only prose would make every caller string-match, and one that carried only a code
+ *  told the model nothing it could use. */
+type WriteRow = { path: string; ok: boolean; reason?: string; detail?: string }
 type WriteItem = { path: string; content: string }
 
 /**
@@ -25,7 +28,7 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 			spec: [
 				{ label: 'structural fail when files is missing', input: {}, assertions: [ { type: 'error_expected' } ] },
 			],
-			description: 'Batch-write text/asset files. Severely limited: each path must sit inside a WRITE-enabled whitelist root (writes are off until a root is opted in), pass the secret blacklist + an extension allowlist (no code/executables), and stay under the size cap. Returns { path, ok, reason? } per file; one denied path never fails the batch.',
+			description: 'Batch-write text/asset files. Severely limited: each path must sit inside a WRITE-enabled whitelist root (writes are off until a root is opted in), pass the secret blacklist + an extension allowlist (no code/executables), and stay under the size cap. Returns { path, ok, reason?, detail? } per file — `reason` is a stable code, `detail` says what would make the write succeed; one denied path never fails the batch.',
 			inputSchema: {
 				type:       'object',
 				properties: {
@@ -44,11 +47,13 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 				},
 				required: [ 'files' ],
 			},
-			handler: async ( args ) => {
+			handler: async ( args, meta ) => {
 				try {
 					// Universal chain (no single `path` param on a batch tool, so the whitelist guard is a
 					// no-op here); the real gating is WriteGuard per item, so one bad path never sinks the batch.
-					chain.run( { tool: 'write', params: args } )
+					// `meta` is forwarded OPAQUE — the handler never reads it, it only hands it to the guards,
+					// which is what keeps a tool structurally unable to strip or synthesize an authorization.
+					chain.run( { tool: 'write', params: args, meta } )
 
 					const files = args[ 'files' ]
 					if( !Array.isArray( files ) ) {
@@ -63,9 +68,9 @@ export function writeTools( chain: GuardChain ): ( ToolDefinition & { spec?: Tes
 							continue
 						}
 
-						const denial = WriteGuard.permits( 'write', item.path, item.content )
+						const denial = WriteGuard.permits( 'write', item.path, item.content, meta )
 						if( denial ) {
-							rows.push( { path: item.path, ok: false, reason: denial } )
+							rows.push( { path: item.path, ok: false, reason: denial.code, detail: denial.detail } )
 							continue
 						}
 
